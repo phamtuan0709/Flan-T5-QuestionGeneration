@@ -51,10 +51,14 @@ def train_model_bloombert(
         test_size=test_size,
         random_state=1234,
         stratify=df["Label"],
+        shuffle=True  # Ensure shuffling
     )
 
     train = pd.DataFrame({"Text": X_train, "Label": y_train})
     val = pd.DataFrame({"Text": X_val, "Label": y_val})
+    
+    # Shuffle training data again
+    train = train.sample(frac=1, random_state=1234).reset_index(drop=True)
 
     if augment:
         # Import only when needed
@@ -85,11 +89,27 @@ def train_model_bloombert(
 
     # Initialize model
     model = BloomBERT(output_dim=6).to(config["device"])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config["learning_rate"])
+    
+    # Optimizer with weight decay for better regularization
+    optimizer = torch.optim.AdamW(
+        model.parameters(), 
+        lr=config["learning_rate"],
+        weight_decay=0.01,  # L2 regularization
+        eps=1e-8
+    )
     
     # Learning rate scheduler with warmup
-    from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2, eta_min=1e-7)
+    from torch.optim.lr_scheduler import OneCycleLR
+    total_steps = len(train_dataloader) * config["epochs"]
+    scheduler = OneCycleLR(
+        optimizer,
+        max_lr=config["learning_rate"],
+        total_steps=total_steps,
+        pct_start=0.1,  # 10% warmup
+        anneal_strategy='cos',
+        div_factor=25.0,
+        final_div_factor=1e4
+    )
     
     if class_weights is not None:
         criterion = nn.CrossEntropyLoss(weight=class_weights)
@@ -109,7 +129,8 @@ def train_model_bloombert(
     print(f"\nTraining for {config['epochs']} epochs...")
     print(f"Train samples: {len(train_dataset)}, Val samples: {len(val_dataset)}")
     print(f"Early stopping: patience={patience}, min_delta={min_delta}")
-    print(f"Learning rate scheduler: CosineAnnealingWarmRestarts")
+    print(f"Learning rate: OneCycleLR with warmup (max_lr={config['learning_rate']:.2e})")
+    print(f"Weight decay: 0.01 (L2 regularization)")
     
     for epoch in range(config["epochs"]):
         # Training
@@ -136,6 +157,9 @@ def train_model_bloombert(
             train_correct += (predicted == labels).sum().item()
 
             pbar.set_postfix({"loss": f"{loss.item():.4f}", "acc": f"{train_correct/train_total:.4f}"})
+            
+            # Step LR scheduler after each batch (OneCycleLR)
+            scheduler.step()
 
         avg_train_loss = train_loss / len(train_dataloader)
         train_acc = train_correct / train_total
@@ -163,8 +187,7 @@ def train_model_bloombert(
         avg_val_loss = val_loss / len(val_dataloader)
         val_acc = val_correct / val_total
         
-        # Step learning rate scheduler
-        scheduler.step()
+        # Get current learning rate (for logging only - OneCycleLR steps per batch)
         current_lr = optimizer.param_groups[0]['lr']
 
         # Save history

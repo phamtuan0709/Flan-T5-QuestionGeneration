@@ -1,5 +1,8 @@
 # External models (cloned repositories)
-external_models/
+external_models/BloomBERT/
+# But keep our training scripts and documentation
+!external_models/bloombert_scripts/
+!external_models/README.md
 
 # Python
 __pycache__/
@@ -65,6 +68,8 @@ baseline_predictions.json
 metrics.json
 baseline_metrics.json
 *.log
+# Except important training logs in bloombert_scripts
+!external_models/bloombert_scripts/training.log
 
 # OS
 .DS_Store
