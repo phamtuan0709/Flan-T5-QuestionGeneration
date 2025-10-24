@@ -9,7 +9,7 @@ This package contains the neural components for the hybrid architecture:
 """
 
 from .bloom_encoder import BloomEncoder
-from .fusion_layer import FusionLayer
+from .fusion_layer import FusionLayer, BLOOM_LEVELS
 from .flan_generator import FlanGenerator
 from .hybrid_model import HybridModel
 
@@ -18,4 +18,5 @@ __all__ = [
     'FusionLayer',
     'FlanGenerator',
     'HybridModel',
+    'BLOOM_LEVELS',
 ]
