@@ -81,6 +81,18 @@ def main():
         action="store_true",
         help="Use data augmentation (SMOTE)"
     )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=10,
+        help="Early stopping patience (default: 10)"
+    )
+    parser.add_argument(
+        "--min_delta",
+        type=float,
+        default=0.001,
+        help="Minimum improvement for early stopping (default: 0.001)"
+    )
     
     args = parser.parse_args()
     
@@ -125,7 +137,9 @@ def main():
         "learning_rate": args.lr,
         "batch_size": args.batch_size,
         "epochs": args.epochs,
-        "device": device
+        "device": device,
+        "patience": args.patience,
+        "min_delta": args.min_delta
     }
     
     logger.info("=" * 60)
@@ -136,6 +150,8 @@ def main():
     logger.info(f"  Device: {config['device']}")
     logger.info(f"  Test size: {args.test_size}")
     logger.info(f"  Augmentation: {args.augment}")
+    logger.info(f"  Early stopping patience: {config['patience']}")
+    logger.info(f"  Min improvement delta: {config['min_delta']}")
     logger.info("=" * 60)
     
     # Train model

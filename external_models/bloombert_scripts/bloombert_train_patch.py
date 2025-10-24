@@ -34,7 +34,8 @@ def train_model_bloombert(
     Args:
         df: DataFrame with Text and Label columns
         tokenizer: DistilBERT tokenizer
-        config: Dict with learning_rate, batch_size, epochs, device
+        config: Dict with learning_rate, batch_size, epochs, device, 
+                patience (for early stopping), min_delta (for improvement threshold)
         class_weights: Tensor of class weights for imbalanced data
         test_size: Ratio for train/validation split
         augment: Whether to use SMOTE augmentation (requires nlpaug)
@@ -86,18 +87,29 @@ def train_model_bloombert(
     model = BloomBERT(output_dim=6).to(config["device"])
     optimizer = torch.optim.AdamW(model.parameters(), lr=config["learning_rate"])
     
+    # Learning rate scheduler with warmup
+    from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2, eta_min=1e-7)
+    
     if class_weights is not None:
         criterion = nn.CrossEntropyLoss(weight=class_weights)
     else:
         criterion = nn.CrossEntropyLoss()
 
     # Training loop
-    history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
+    history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": [], "lr": []}
     best_val_acc = 0.0
     best_model = None
+    
+    # Early stopping parameters
+    patience = config.get("patience", 10)
+    min_delta = config.get("min_delta", 0.001)
+    patience_counter = 0
 
     print(f"\nTraining for {config['epochs']} epochs...")
     print(f"Train samples: {len(train_dataset)}, Val samples: {len(val_dataset)}")
+    print(f"Early stopping: patience={patience}, min_delta={min_delta}")
+    print(f"Learning rate scheduler: CosineAnnealingWarmRestarts")
     
     for epoch in range(config["epochs"]):
         # Training
@@ -150,22 +162,38 @@ def train_model_bloombert(
 
         avg_val_loss = val_loss / len(val_dataloader)
         val_acc = val_correct / val_total
+        
+        # Step learning rate scheduler
+        scheduler.step()
+        current_lr = optimizer.param_groups[0]['lr']
 
         # Save history
         history["train_loss"].append(avg_train_loss)
         history["train_acc"].append(train_acc)
         history["val_loss"].append(avg_val_loss)
         history["val_acc"].append(val_acc)
+        history["lr"].append(current_lr)
 
         print(f"Epoch {epoch+1}/{config['epochs']}: "
               f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f} | "
-              f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
+              f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f} | "
+              f"LR: {current_lr:.2e}")
 
-        # Save best model
-        if val_acc > best_val_acc:
+        # Save best model and check early stopping
+        improvement = val_acc - best_val_acc
+        if improvement > min_delta:
             best_val_acc = val_acc
             best_model = BloomBERT(output_dim=6).to(config["device"])
             best_model.load_state_dict(model.state_dict())
-            print(f"✓ New best model! Val Acc: {val_acc:.4f}")
+            patience_counter = 0
+            print(f"✓ New best model! Val Acc: {val_acc:.4f} (improvement: +{improvement:.4f})")
+        else:
+            patience_counter += 1
+            print(f"⚠ No improvement for {patience_counter}/{patience} epochs")
+            
+            if patience_counter >= patience:
+                print(f"\n🛑 Early stopping triggered after {epoch+1} epochs!")
+                print(f"   Best validation accuracy: {best_val_acc:.4f}")
+                break
 
     return best_model, history, best_val_acc
