@@ -24,7 +24,7 @@ __version__ = "1.0.0"
 __author__ = "Bloom-QG Team"
 
 from .models import HybridModel, BloomEncoder, FusionLayer, FlanGenerator, BLOOM_LEVELS
-from .data import BloomQGDataset, create_collate_fn, prepare_squad_with_bloom
+from .data import BloomQGDataset, create_collate_fn
 
 __all__ = [
     # Models
@@ -36,5 +36,4 @@ __all__ = [
     # Data
     'BloomQGDataset',
     'create_collate_fn',
-    'prepare_squad_with_bloom',
 ]
