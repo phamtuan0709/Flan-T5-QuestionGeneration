@@ -226,10 +226,16 @@ class FlanGenerator(nn.Module):
             # Get extended encoder outputs
             encoder_outputs = self.encode_with_prefix(contexts, answers, v_prefix)
             
+            # Create a proper encoder output object for T5
+            from transformers.modeling_outputs import BaseModelOutput
+            encoder_output_obj = BaseModelOutput(
+                last_hidden_state=encoder_outputs["encoder_hidden_states"]
+            )
+            
             # Generate with beam search
             generated_ids = self.model.generate(
                 attention_mask=encoder_outputs["attention_mask"],
-                encoder_outputs=(encoder_outputs["encoder_hidden_states"],),
+                encoder_outputs=encoder_output_obj,
                 num_beams=num_beams,
                 max_new_tokens=max_new_tokens,
                 early_stopping=True,

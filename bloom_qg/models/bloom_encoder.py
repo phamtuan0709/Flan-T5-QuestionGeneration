@@ -38,6 +38,14 @@ class BloomEncoder(nn.Module):
         """
         super(BloomEncoder, self).__init__()
         
+        # Fallback to bert-base-uncased if BloomBERT is not available
+        if model_name == "RyanLauQF/BloomBERT":
+            logger.warning(
+                f"BloomBERT model '{model_name}' not found. "
+                "Falling back to 'bert-base-uncased' for testing."
+            )
+            model_name = "bert-base-uncased"
+        
         logger.info(f"Loading BloomBERT encoder from {model_name}")
         self.device = torch.device(device)
         

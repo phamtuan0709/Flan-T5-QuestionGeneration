@@ -25,8 +25,7 @@ numpy>=1.24.0
 sentencepiece>=0.1.99
 protobuf>=3.20.0
 
-# LearningQ dataset processing
-data-prep-kit>=0.2.0
+# LearningQ dataset processing (data-prep-kit is optional, using built-in processing)
 sentence-transformers>=2.2.0
 
 # Logging and utilities
