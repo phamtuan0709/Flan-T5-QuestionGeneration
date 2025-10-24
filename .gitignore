@@ -1,3 +1,6 @@
+# External models (cloned repositories)
+external_models/
+
 # Python
 __pycache__/
 *.py[cod]

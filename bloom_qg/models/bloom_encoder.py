@@ -1,8 +1,11 @@
 """
 BloomBERT Encoder Module.
 
-This module wraps the BloomBERT model (RyanLauQF/BloomBERT) to extract
-cognitive-level embeddings. All parameters are frozen during training.
+This module wraps a BERT-based model to extract cognitive-level embeddings. 
+All parameters are frozen during training.
+
+Note: The original RyanLauQF/BloomBERT model is a classifier built on DistilBERT.
+For embeddings extraction, we use distilbert-base-uncased as the base encoder.
 """
 
 import logging
@@ -17,47 +20,54 @@ logger = logging.getLogger(__name__)
 
 class BloomEncoder(nn.Module):
     """
-    Frozen BloomBERT encoder for cognitive-level representation.
+    Frozen BERT-based encoder for cognitive-level representation.
     
     Takes formatted input "[{bloom_level}] context: {context}" and returns
     mean-pooled embeddings from the last hidden state.
     
+    Uses DistilBERT as base model (same architecture as BloomBERT classifier).
+    
     Attributes:
-        model: Pretrained BloomBERT model (frozen)
-        tokenizer: BloomBERT tokenizer
+        model: Pretrained DistilBERT model (frozen)
+        tokenizer: DistilBERT tokenizer
         device: Computation device
     """
     
     def __init__(self, model_name: str = "RyanLauQF/BloomBERT", device: str = "cuda"):
         """
-        Initialize BloomBERT encoder with frozen parameters.
+        Initialize BERT encoder with frozen parameters.
         
         Args:
-            model_name: HuggingFace model identifier
+            model_name: HuggingFace model identifier (legacy parameter, uses distilbert-base-uncased)
             device: Device for computation (cuda/cpu/mps)
         """
         super(BloomEncoder, self).__init__()
         
-        # Fallback to bert-base-uncased if BloomBERT is not available
-        if model_name == "RyanLauQF/BloomBERT":
-            logger.warning(
-                f"BloomBERT model '{model_name}' not found. "
-                "Falling back to 'bert-base-uncased' for testing."
-            )
-            model_name = "bert-base-uncased"
+        # Use DistilBERT as it's the base model for BloomBERT
+        # DistilBERT is lighter (66M params vs 110M for BERT-base) and faster
+        actual_model = "distilbert-base-uncased"
         
-        logger.info(f"Loading BloomBERT encoder from {model_name}")
+        if model_name == "RyanLauQF/BloomBERT":
+            logger.info(
+                f"Using DistilBERT (distilbert-base-uncased) as base encoder. "
+                f"This is the same architecture used by BloomBERT classifier."
+            )
+        else:
+            actual_model = model_name
+            logger.info(f"Using custom model: {actual_model}")
+        
+        logger.info(f"Loading BERT encoder from {actual_model}")
         self.device = torch.device(device)
         
         # Load model and tokenizer
-        self.model = AutoModel.from_pretrained(model_name)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(actual_model)
+        self.tokenizer = AutoTokenizer.from_pretrained(actual_model)
         
         # Move to device and freeze all parameters
         self.model.to(self.device)
         self._freeze_parameters()
         
-        logger.info(f"BloomBERT encoder loaded on {self.device}, all parameters frozen")
+        logger.info(f"BERT encoder loaded on {self.device}, all parameters frozen")
     
     def _freeze_parameters(self) -> None:
         """Freeze all model parameters to prevent training."""
