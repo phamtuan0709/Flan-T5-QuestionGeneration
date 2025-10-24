@@ -1,6 +1,51 @@
 # External Models Directory
 
-This directory contains cloned repositories of external models used in the project.
+This directory contains external model repositories and training scripts.
+
+## Structure
+
+```
+external_models/
+├── BloomBERT/              # Cloned BloomBERT repository
+│   ├── data/               # Training dataset (6,175 samples)
+│   ├── src/                # BloomBERT source code
+│   ├── model/              # Trained model weights (after training)
+│   └── README.md
+├── bloombert_scripts/      # Our training/testing scripts
+│   ├── train_bloombert.py
+│   ├── test_bloombert_classifier.py
+│   ├── bloombert_train_patch.py
+│   ├── requirements-bloombert.txt
+│   └── README.md
+└── README.md               # This file
+```
+
+## Quick Start
+
+### 1. Train BloomBERT Classifier
+
+```bash
+# Install dependencies
+cd bloombert_scripts
+pip install -r requirements-bloombert.txt
+
+# Train model (10 epochs for quick test)
+python train_bloombert.py --epochs 10 --batch_size 64
+
+# Or full training (50 epochs as in paper)
+python train_bloombert.py --epochs 50 --batch_size 128
+```
+
+**Output**: Model saved to `BloomBERT/model/bloombert_model.pt`
+
+### 2. Test Trained Model
+
+```bash
+cd bloombert_scripts
+python test_bloombert_classifier.py
+```
+
+See `bloombert_scripts/README.md` for detailed usage instructions.
 
 ## BloomBERT
 
